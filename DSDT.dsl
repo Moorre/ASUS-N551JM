@@ -2688,6 +2688,31 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
             Device (LPCB)
             {
                 Name (_ADR, 0x001F0000)  // _ADR: Address
+                Method (_DSM, 4, NotSerialized)  // _DSM: Device-Specific Method
+                {
+                    If ((Arg2 == Zero))
+                    {
+                        Return (Buffer (One)
+                        {
+                             0x03                                             /* . */
+                        })
+                    }
+
+                    Return (Package (0x08)
+                    {
+                        "name", 
+                        "pci8086,8c4b", 
+                        "IOName", 
+                        "pci8086,8c4b",
+                        "compatible", 
+                        "pci8086,8c4b", 
+                        "device-id", 
+                        Buffer (0x04)
+                        {
+                             0x4B, 0x8C, 0x00, 0x00                           /* K... */
+                        }
+                    })
+                }
                 Scope (\_SB)
                 {
                     OperationRegion (PCI0.LPCB.LPC1, PCI_Config, Zero, 0x0100)
@@ -10809,8 +10834,8 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                 Offset (0x8A), 
                 HKEN,   1, 
                 Offset (0x93), 
-                TAH0,   16, 
-                TAH1,   16, 
+                TAH0,   16, //
+                TAH1,   16, //
                 TSTP,   8, 
                 Offset (0x9C), 
                 CDT4,   8, 
@@ -10835,8 +10860,8 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                 B0TM,   16, 
                 B0C1,   16, 
                 B0C2,   16, 
-                B0C3,   16, 
-                B0C4,   16, 
+                B0C3,   8, B0C4,   8,//
+                B0C5,   16, 
                 Offset (0xD0), 
                 B1PN,   16, 
                 Offset (0xD4), 
@@ -10853,11 +10878,11 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                 Offset (0xF0), 
                 Offset (0xF2), 
                 Offset (0xF4), 
-                B0SN,   16, 
+                B0SN,   8, B1SN,   8,//
                 Offset (0xF8), 
                 Offset (0xFA), 
                 Offset (0xFC), 
-                B1SN,   16
+                B2SN,   8, B3SN,   8, //
             }
 
             Name (SMBF, Zero)
@@ -10871,7 +10896,7 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                 CDFG,   1, 
                 ADDR,   8, 
                 CMDB,   8, 
-                BDAT,   256, 
+                BDAT,   256, //
                 BCNT,   8, 
                     ,   1, 
                 ALAD,   7, 
@@ -10889,7 +10914,7 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                 CDF2,   1, 
                 ADD2,   8, 
                 CMD2,   8, 
-                BDA2,   256, 
+                BDA2,   256, //
                 BCN2,   8, 
                     ,   1, 
                 ALA2,   7, 
@@ -10914,7 +10939,7 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
             Field (SMBX, ByteAcc, NoLock, Preserve)
             {
                 Offset (0x04), 
-                DT2B,   16
+                DT2B,   8, DT3B,   8
             }
 
             OperationRegion (NSBS, EmbeddedControl, 0x40, 0x04)
@@ -10980,6 +11005,58 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                 If (LEqual (Arg0, 0x03))
                 {
                     Store (Arg1, ECFL) /* \_SB_.PCI0.LPCB.EC0_.ECFL */
+                }
+            }
+                        Method (RE1B, 1, NotSerialized)
+            {
+                OperationRegion (ERAM, EmbeddedControl, Arg0, One)
+                Field (ERAM, ByteAcc, NoLock, Preserve)
+                {
+                    BYTE,   8
+                }
+
+                Return (BYTE) /* \_SB_.PCI0.LPCB.EC0_.RE1B.BYTE */
+            }
+
+            Method (RECB, 2, Serialized)
+            {
+                ShiftRight (Arg1, 0x03, Arg1)
+                Name (TEMP, Buffer (Arg1) {})
+                Add (Arg1, Arg0, Arg1)
+                Store (Zero, Local0)
+                While (LLess (Arg0, Arg1))
+                {
+                    Store (RE1B (Arg0), Index (TEMP, Local0))
+                    Increment (Arg0)
+                    Increment (Local0)
+                }
+
+                Return (TEMP) /* \_SB_.PCI0.LPCB.EC0_.RECB.TEMP */
+            }
+
+            Method (WE1B, 2, NotSerialized)
+            {
+                OperationRegion (ERAM, EmbeddedControl, Arg0, One)
+                Field (ERAM, ByteAcc, NoLock, Preserve)
+                {
+                    BYTE,   8
+                }
+
+                Store (Arg1, BYTE) /* \_SB_.PCI0.LPCB.EC0_.WE1B.BYTE */
+            }
+
+            Method (WECB, 3, Serialized)
+            {
+                ShiftRight (Arg1, 0x03, Arg1)
+                Name (TEMP, Buffer (Arg1) {})
+                Store (Arg2, TEMP) /* \_SB_.PCI0.LPCB.EC0_.WECB.TEMP */
+                Add (Arg1, Arg0, Arg1)
+                Store (Zero, Local0)
+                While (LLess (Arg0, Arg1))
+                {
+                    WE1B (Arg0, DerefOf (Index (TEMP, Local0)))
+                    Increment (Arg0)
+                    Increment (Local0)
                 }
             }
         }
@@ -13642,7 +13719,7 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                     Divide (DerefOf (Index (BIXT, 0x0F)), 0x03E8, Local0, Index (BIXT, 0x0F))
                 }
 
-                Store (^^LPCB.EC0.B0C3, Index (BIXT, 0x08))
+                Store (B1B2 (^^LPCB.EC0.B0C3, ^^LPCB.EC0.B0C4), Index (BIXT, 0x08))
                 Store (0x0001869F, Index (BIXT, 0x09))
                 Return (BIXT) /* \_SB_.PCI0.BAT0.BIXT */
             }
@@ -13881,11 +13958,11 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
             {
                 If (BSLF)
                 {
-                    Store (B1SN, Local0)
+                    Store (B1B2 (B2SN, B3SN), Local0)
                 }
                 Else
                 {
-                    Store (B0SN, Local0)
+                    Store (B1B2 (B0SN, B1SN), Local0)
                 }
             }
             Else
@@ -17159,7 +17236,8 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                     }
                 }
 
-                Store (Zero, BDAT) /* \_SB_.PCI0.LPCB.EC0_.BDAT */
+             // Store (Zero, BDAT) /* \_SB_.PCI0.LPCB.EC0_.BDAT */
+                WECB (0x1C, 0x0100, Zero)
                 Store (Arg0, PRTC) /* \_SB_.PCI0.LPCB.EC0_.PRTC */
                 Store (SWTC (Arg0), Index (Local0, Zero))
                 If (LEqual (DerefOf (Index (Local0, Zero)), Zero))
@@ -17167,13 +17245,14 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                     If (LEqual (Arg0, RDBL))
                     {
                         Store (BCNT, Index (Local0, One))
-                        Store (BDAT, Index (Local0, 0x02))
+                     // Store (BDAT, Index (Local0, 0x02))
+                        Store (RECB (0x1C, 0x0100), Index (Local0, 0x02))
                     }
 
                     If (LEqual (Arg0, RDWD))
                     {
                         Store (0x02, Index (Local0, One))
-                        Store (DT2B, Index (Local0, 0x02))
+                        Store (B1B2 (DT2B, DT3B), Index (Local0, 0x02))
                     }
 
                     If (LEqual (Arg0, RDBT))
@@ -17242,7 +17321,8 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
 
             If (LLessEqual (Local2, 0x03E8))
             {
-                Store (Zero, BDAT) /* \_SB_.PCI0.LPCB.EC0_.BDAT */
+             // Store (Zero, BDAT) /* \_SB_.PCI0.LPCB.EC0_.BDAT */
+                WECB (0x1C, 0x0100, Zero)
                 ShiftLeft (Arg1, One, Local3)
                 Store (Local3, ADDR) /* \_SB_.PCI0.LPCB.EC0_.ADDR */
                 If (LNotEqual (Arg0, WRQK))
@@ -17256,12 +17336,15 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                 If (LEqual (Arg0, WRBL))
                 {
                     Store (Arg3, BCNT) /* \_SB_.PCI0.LPCB.EC0_.BCNT */
-                    Store (Arg4, BDAT) /* \_SB_.PCI0.LPCB.EC0_.BDAT */
+                 // Store (Arg4, BDAT) /* \_SB_.PCI0.LPCB.EC0_.BDAT */
+                    WECB (0x1C, 0x0100, Arg4)
                 }
 
                 If (LEqual (Arg0, WRWD))
                 {
-                    Store (Arg4, DT2B) /* \_SB_.PCI0.LPCB.EC0_.DT2B */
+                 // Store (Arg4, DT2B) /* \_SB_.PCI0.LPCB.EC0_.DT2B */
+                    Store (Arg4, DT2B) /* \_SB_.PCI0.LPCB.EC0_.T2B0 */
+                    ShiftRight (Arg4, 0x08, DT3B) /* \_SB_.PCI0.LPCB.EC0_.T2B1 */
                 }
 
                 If (LEqual (Arg0, WRBT))
@@ -17422,7 +17505,8 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                         If (LOr (LEqual (Arg1, 0x0A), LEqual (Arg1, 0x0B)))
                         {
                             Store (DerefOf (Index (Arg6, Zero)), BCNT) /* \_SB_.PCI0.LPCB.EC0_.BCNT */
-                            Store (DerefOf (Index (Arg6, One)), BDAT) /* \_SB_.PCI0.LPCB.EC0_.BDAT */
+                         // Store (DerefOf (Index (Arg6, One)), BDAT) /* \_SB_.PCI0.LPCB.EC0_.BDAT */
+                            WECB (0x1C, 0x0100, DerefOf (Index (Arg6, One)))
                         }
                         Else
                         {
@@ -17439,7 +17523,8 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                         If (LOr (LEqual (Arg1, 0x0A), LEqual (Arg1, 0x0B)))
                         {
                             Store (DerefOf (Index (Arg6, Zero)), BCN2) /* \_SB_.PCI0.LPCB.EC0_.BCN2 */
-                            Store (DerefOf (Index (Arg6, One)), BDA2) /* \_SB_.PCI0.LPCB.EC0_.BDA2 */
+                         // Store (DerefOf (Index (Arg6, One)), BDA2) /* \_SB_.PCI0.LPCB.EC0_.BDA2 */
+                            WECB (0x44, 0x0100, DerefOf (Index (Arg6, One)))
                         }
                         Else
                         {
@@ -17476,7 +17561,8 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                             Store (DAT0, Index (Local1, One))
                             Store (DAT1, Index (Local1, 0x02))
                             Store (BCNT, Index (Local1, 0x03))
-                            Store (BDAT, Index (Local1, 0x04))
+                         // Store (BDAT, Index (Local1, 0x04))
+                            Store (RECB (0x1C, 0x0100), Index (Local1, 0x04))
                         }
                         Else
                         {
@@ -17484,7 +17570,8 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
                             Store (DA20, Index (Local1, One))
                             Store (DA21, Index (Local1, 0x02))
                             Store (BCN2, Index (Local1, 0x03))
-                            Store (BDA2, Index (Local1, 0x04))
+                         // Store (BDA2, Index (Local1, 0x04))
+                            Store (RECB (0x44, 0x0100), Index (Local1, 0x04))
                         }
 
                         And (Local0, 0x1F, Local0)
@@ -20875,6 +20962,10 @@ DefinitionBlock ("/Users/stevebondaryan/Desktop/N551JM/origin/DSDT.aml", "DSDT",
         \_SB.ATKD.GENW (Arg0)
         \_SB.PCI0.GFX0.OWAK (Arg0)
         OEMW (Arg0)
+    }
+    Method (B1B2, 2, NotSerialized)
+    {
+        Return (Or (Arg0, ShiftLeft (Arg1, 0x08)))
     }
 }
 
